@@ -37,11 +37,42 @@ ngOnInit(): void {
   this.loadTopSellingProducts(); 
 }
 
+  /** ---------- Helpers de imagen (mismos que usamos en otras vistas) ---------- */
+  private normalizeProductImage(p: any): Product {
+    const raw = p?.image || p?.imageUrl || '';
+    if (/^https?:\/\//i.test(raw)) return { ...p, image: raw };
+
+    const cleaned =
+      String(raw)
+        .replace(/^assets\/images\//i, '')
+        .replace(/^images\//i, '')
+        .replace(/^\.?\/*/, '')
+        .toLowerCase() || 'default.jpg';
+
+    return { ...p, image: cleaned };
+  }
+
+  getImageSrc(img?: string): string {
+    if (!img) return 'assets/images/default.jpg';
+    const s = String(img).trim();
+    if (/^https?:\/\//i.test(s)) return s;
+    const just = s
+      .replace(/^assets\/images\//i, '')
+      .replace(/^images\//i, '')
+      .replace(/^\.?\/*/, '')
+      .toLowerCase();
+    return `assets/images/${just}`;
+  }
+
+  onImgError(ev: Event) {
+    (ev.target as HTMLImageElement).src = 'assets/images/default.jpg';
+  }
+  /** ------------------------------------------------------------------------- */
 
   loadFeaturedProducts(): void {
     this.productService.getProducts().subscribe({
       next: (data) => {
-        this.featuredProducts = data.slice(0, 4); // primeros 4 productos
+        this.featuredProducts = data.map(p => this.normalizeProductImage(p)).slice(0, 4); // primeros 4 productos
       },
       error: (err) => console.error('Error al cargar productos destacados:', err),
     });
@@ -65,9 +96,9 @@ ngOnInit(): void {
     
         console.log(' Procesados:', this.topSellingProducts);
       },
-      error: (err) => console.error('Error al cargar más vendidos:', err),
     });
   }
+
 
   subscribeNewsletter() {
     if (!this.newsletterEmail) return;

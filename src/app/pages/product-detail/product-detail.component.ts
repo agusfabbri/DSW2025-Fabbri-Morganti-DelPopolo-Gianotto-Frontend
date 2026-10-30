@@ -49,6 +49,9 @@ export class ProductDetailComponent implements OnInit {
       },
     });
   }
+ // 🔹 Normaliza el campo image para evitar prefijos duplicados y problemas de mayúsculas
+  private normalizeProductImage(p: any): Product {
+    const raw = p.image || p.imageUrl || '';
 
  addToCart(product: Product) {
   const currentItem = this.cartService.getCartItem(product.id);
