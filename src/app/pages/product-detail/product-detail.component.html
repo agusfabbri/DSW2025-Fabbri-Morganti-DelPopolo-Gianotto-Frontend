@@ -19,7 +19,6 @@
       <p class="text-muted">{{ product.description }}</p>
       <p><strong>Precio:</strong> ${{ product.price }}</p>
       <p><strong>Stock:</strong> {{ product.stock }}</p>
-      <p><strong>Categoría:</strong> {{ product.category?.name }}</p>
 
       <!-- Calificación promedio -->
       <div class="mb-3">
@@ -43,6 +42,7 @@
         </ng-template>
       </div>
 
+      <!-- BOTÓN AGREGAR CON VALIDACIÓN DE STOCK -->
       <button
         class="btn btn-success"
         (click)="addToCart(product)"
@@ -50,6 +50,11 @@
       >
         🛒 Agregar al carrito
       </button>
+
+      <!-- Aviso si stock = 0 -->
+      <div *ngIf="product.stock === 0" class="text-danger mt-2">
+        Este producto no tiene stock disponible.
+      </div>
     </div>
   </div>
 

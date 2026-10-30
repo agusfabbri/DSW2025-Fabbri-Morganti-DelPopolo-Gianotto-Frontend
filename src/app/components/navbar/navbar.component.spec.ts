@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 
 import { NavbarComponent } from './navbar.component';
 
@@ -8,14 +9,15 @@ describe('NavbarComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      declarations: [NavbarComponent]
+      declarations: [NavbarComponent],
+      imports: [HttpClientTestingModule]
     });
     fixture = TestBed.createComponent(NavbarComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it('deberia crear el componente', () => {
     expect(component).toBeTruthy();
   });
 });

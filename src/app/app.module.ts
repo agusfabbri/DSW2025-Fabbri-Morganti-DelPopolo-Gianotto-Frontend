@@ -1,6 +1,9 @@
-import { NgModule } from '@angular/core';
+// app.module.ts
+import { NgModule, LOCALE_ID } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
+import { RecaptchaModule } from 'ng-recaptcha';
+
 
 import { HTTP_INTERCEPTORS } from '@angular/common/http';
 import { AuthInterceptor } from './interceptors/auth.interceptor';
@@ -24,6 +27,13 @@ import { ToastComponent } from './components/toast/toast.component';
 import { UserOrdersComponent } from './components/user-orders/user-orders.component';
 import { CompraFinalizadaComponent } from './pages/compra-finalizada/compra-finalizada.component';
 
+import { registerLocaleData } from '@angular/common';
+import localeEsAr from '@angular/common/locales/es-AR';
+import localeEs from '@angular/common/locales/es';
+import { ConfirmModalComponent } from './components/confirm-modal/confirm-modal.component';
+
+registerLocaleData(localeEsAr ?? localeEs, 'es-AR');
+
 @NgModule({
   declarations: [
     AppComponent,
@@ -42,15 +52,20 @@ import { CompraFinalizadaComponent } from './pages/compra-finalizada/compra-fina
     AdminUsersComponent,
     ToastComponent,
     UserOrdersComponent,
-    CompraFinalizadaComponent
+    CompraFinalizadaComponent,
+    ConfirmModalComponent
   ],
   imports: [
     BrowserModule,
-    AppRoutingModule, 
+    AppRoutingModule,
     HttpClientModule,
     FormsModule,
+    RecaptchaModule
   ],
-  providers: [{ provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true }],
+  providers: [
+    { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true },
+    { provide: LOCALE_ID, useValue: 'es-AR' },
+  ],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

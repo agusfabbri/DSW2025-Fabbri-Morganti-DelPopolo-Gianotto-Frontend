@@ -1,6 +1,12 @@
 <div class="container mt-5" style="max-width: 400px">
   <h2 class="mb-4 text-center fw-bold">Iniciar sesión</h2>
 
+  <!-- Mensaje de bloqueo -->
+  <div *ngIf="blocked" class="alert alert-danger text-center fw-bold">
+    Demasiados intentos. Podrás volver a intentar en
+    {{ blockSeconds }} segundos.
+  </div>
+
   <form (ngSubmit)="onSubmit()" #loginForm="ngForm" novalidate>
     <!-- Email -->
     <div class="mb-3">
@@ -14,7 +20,9 @@
         required
         email
         #emailInput="ngModel"
+        [disabled]="blocked || loading"
         [class.is-invalid]="emailInput.invalid && emailInput.touched"
+        data-testid="email-input"
       />
       <div
         *ngIf="emailInput.invalid && emailInput.touched"
@@ -39,7 +47,9 @@
         required
         minlength="6"
         #passwordInput="ngModel"
+        [disabled]="blocked || loading"
         [class.is-invalid]="passwordInput.invalid && passwordInput.touched"
+        data-testid="password-input"
       />
       <div
         *ngIf="passwordInput.invalid && passwordInput.touched"
@@ -54,11 +64,23 @@
       </div>
     </div>
 
+    <!-- CAPTCHA -->
+    <div class="mb-3">
+      <re-captcha
+        #captchaRef
+        siteKey="6Lf5iXgtAAAAAP6MZQZMb-JPVf3xLQ5sWx5Kxk-z"
+        (resolved)="onCaptchaResolved($event)"
+        [ngClass]="{ 'opacity-50': blocked }"
+        data-testid="captcha"
+      ></re-captcha>
+    </div>
+
     <!-- Botón -->
     <button
       type="submit"
       class="btn btn-primary w-100"
-      [disabled]="loginForm.invalid || loading"
+      [disabled]="loginForm.invalid || loading || !captchaToken || blocked"
+      data-testid="submit-button"
     >
       <span
         *ngIf="loading"
@@ -66,7 +88,11 @@
         role="status"
         aria-hidden="true"
       ></span>
-      Ingresar
+
+      <!-- Cambia el texto si está bloqueado -->
+      <ng-container *ngIf="!blocked; else blockedMsg"> Ingresar </ng-container>
+
+      <ng-template #blockedMsg> Espera {{ blockSeconds }}s… </ng-template>
     </button>
   </form>
 </div>

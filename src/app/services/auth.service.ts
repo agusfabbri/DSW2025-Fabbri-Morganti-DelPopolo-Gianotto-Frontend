@@ -1,8 +1,10 @@
 
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-
+import { CartService } from '../services/cart.service';
 import { Observable, tap, BehaviorSubject } from 'rxjs';
+import { environment } from '../../environments/environment';
+
 
 interface LoginResponse {
   token: string;
@@ -18,33 +20,47 @@ interface LoginResponse {
   providedIn: 'root',
 })
 export class AuthService {
-  private apiUrl = 'http://localhost:3000/api/users';
+  private apiUrl = environment.apiUrl + '/users';
 
   private currentUserSubject = new BehaviorSubject<LoginResponse['user'] | null>(null);
   currentUser$ = this.currentUserSubject.asObservable();
 
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient,
+  private cartService: CartService) {
     const user = localStorage.getItem('user');
     if (user) {
       this.currentUserSubject.next(JSON.parse(user));
     }
   }
 
-  login(email: string, password: string): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${this.apiUrl}/login`, { email, password }).pipe(
+ login(email: string, password: string, captchaToken: string)
+: Observable<LoginResponse> {
+  return this.http
+    .post<LoginResponse>(`${this.apiUrl}/login`, {
+      email,
+      password,
+  captchaToken
+    })
+    .pipe(
       tap(response => {
         localStorage.setItem('token', response.token);
         localStorage.setItem('user', JSON.stringify(response.user));
-        localStorage.setItem('role', response.user.role); 
+        localStorage.setItem('role', response.user.role);
         this.currentUserSubject.next(response.user);
       })
     );
-  }
+}
+
 
   logout(): void {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('role'); 
+     localStorage.removeItem('cart');// correccion error
+     this.cartService.clearCart();
+
+     
+
     this.currentUserSubject.next(null);
   }
 

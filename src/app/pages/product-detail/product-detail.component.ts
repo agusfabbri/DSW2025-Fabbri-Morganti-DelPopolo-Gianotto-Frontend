@@ -1,10 +1,10 @@
 import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
-import { ProductService } from 'src/app/services/product.service';
-import { Product } from 'src/app/models/product';
-import { CartService } from 'src/app/services/cart.service';
-import { ReviewService, Review } from 'src/app/services/review.service';
-import { ToastService } from 'src/app/services/toast.service';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ProductService } from '../../services/product.service';
+import { Product } from '../../models/product';
+import { CartService } from '../../services/cart.service';
+import { ReviewService, Review } from '../../services/review.service';
+import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-product-detail',
@@ -14,14 +14,14 @@ export class ProductDetailComponent implements OnInit {
   product!: Product;
   reviews: Review[] = [];
 
-  // propiedades para el formulario de reseña
+  // formulario de reseña
   rating: number = 5;
   comment: string = '';
   hoveredRating: number = 0;
 
-
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private productService: ProductService,
     private cartService: CartService,
     private reviewService: ReviewService,
@@ -30,66 +30,51 @@ export class ProductDetailComponent implements OnInit {
 
   ngOnInit() {
     const id = Number(this.route.snapshot.paramMap.get('id'));
+
     this.productService.getProductById(id).subscribe({
       next: (data) => {
-        if (data.Category) {
-          data.category = data.Category;
-          delete data.Category;
+        // ⛔ Si el producto está inactivo, lo sacamos
+        if (!data.active) {
+          this.toast.showToast('Este producto no está disponible.', 'warning');
+          this.router.navigate(['/']);
+          return;
         }
-        this.product = this.normalizeProductImage(data);
+
+        this.product = data;
         this.loadReviews();
       },
-      error: (err) => console.error(err),
+      error: (err) => {
+        console.error(err);
+        this.router.navigate(['/']);
+      },
     });
   }
  // 🔹 Normaliza el campo image para evitar prefijos duplicados y problemas de mayúsculas
   private normalizeProductImage(p: any): Product {
     const raw = p.image || p.imageUrl || '';
 
-    // URL absoluta → la dejo tal cual
-    if (/^https?:\/\//i.test(raw)) return { ...p, image: raw };
+ addToCart(product: Product) {
+  const currentItem = this.cartService.getCartItem(product.id);
 
-    // limpio prefijos y fuerzo minúsculas
-    const cleaned =
-      String(raw)
-        .replace(/^assets\/images\//i, '')
-        .replace(/^images\//i, '')
-        .replace(/^\.?\/*/, '')
-        .toLowerCase() || 'default.jpg';
-
-    return { ...p, image: cleaned };
+  // ❌ Sin stock
+  if (product.stock === 0) {
+    this.toast.showToast('Este producto no tiene stock disponible.', 'warning');
+    return;
   }
 
-  // 🔹 Construye el src final sin duplicar 'assets/images/'
-  getImageSrc(img?: string): string {
-    if (!img) return 'assets/images/default.jpg';
-    const s = String(img).trim();
-
-    if (/^https?:\/\//i.test(s)) return s; // URL externa
-
-    const just = s
-      .replace(/^assets\/images\//i, '')
-      .replace(/^images\//i, '')
-      .replace(/^\.?\/*/, '')
-      .toLowerCase();
-
-    return `assets/images/${just}`;
+  // ❌ Excede el stock disponible
+  if (currentItem && currentItem.quantity >= product.stock) {
+    this.toast.showToast(
+      `No puedes agregar más. Stock disponible: ${product.stock}`,
+      'warning'
+    );
+    return;
   }
 
-  // 🔹 Fallback si falla la carga
-  onImgError(ev: Event) {
-    (ev.target as HTMLImageElement).src = 'assets/images/default.jpg';
-  }
-  addToCart(product: Product) {
-    if (product.stock === 0) {
-      this.toast.showToast('Este producto no tiene stock disponible.', 'warning');
-      return;
-    }
-  
-    this.cartService.addProduct(product);
-    this.toast.showToast('Producto agregado al carrito.', 'success');
-  }
-  
+  // ✔ Ok, agregar
+  this.cartService.addProduct(product);
+  this.toast.showToast('Producto agregado al carrito.', 'success');
+}
 
   loadReviews() {
     this.reviewService.getReviewsByProduct(this.product.id).subscribe({
@@ -98,14 +83,13 @@ export class ProductDetailComponent implements OnInit {
     });
   }
 
-  //  Enviar reseña
   submitReview() {
     const review = {
       productId: this.product.id,
       rating: this.rating,
       comment: this.comment,
     };
-  
+
     this.reviewService.addReview(this.product.id, review).subscribe({
       next: () => {
         this.toast.showToast('Reseña enviada con éxito.', 'success');
@@ -132,16 +116,14 @@ export class ProductDetailComponent implements OnInit {
   get averageRatingRounded(): number {
     return Math.round(this.averageRating);
   }
-  
+
   get totalReviews(): number {
     return this.reviews.length;
   }
-  
+
   getStarsArray(rating: number): number[] {
-    return Array(5).fill(0).map((_, i) => (i < rating ? 1 : 0));
+    return Array(5)
+      .fill(0)
+      .map((_, i) => (i < rating ? 1 : 0));
   }
-  
-  
 }
-
-

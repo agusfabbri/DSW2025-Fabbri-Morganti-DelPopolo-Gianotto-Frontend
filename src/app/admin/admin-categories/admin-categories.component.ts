@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { CategoryService, Category } from 'src/app/services/category.service';
+import { CategoryService, Category } from '../../services/category.service';
 
 @Component({
   selector: 'app-admin-categories',
@@ -7,10 +7,21 @@ import { CategoryService, Category } from 'src/app/services/category.service';
   styleUrls: ['./admin-categories.component.css']
 })
 export class AdminCategoriesComponent implements OnInit {
+
   categories: Category[] = [];
   newCategoryName: string = '';
+
   editingCategory: Category | null = null;
   updatedName: string = '';
+
+  // 🔥 Modal Universal
+  showModal = false;
+  modalTitle = '';
+  modalMessage = '';
+  actionToConfirm: (() => void) | null = null;
+
+  errorMessage: string = '';
+
 
   constructor(private categoryService: CategoryService) {}
 
@@ -18,30 +29,43 @@ export class AdminCategoriesComponent implements OnInit {
     this.loadCategories();
   }
 
+  /** CARGAR CATEGORÍAS */
   loadCategories() {
     this.categoryService.getAll().subscribe({
-      next: (data) => this.categories = data,
-      error: (err) => console.error('Error al cargar categorías', err)
+      next: (data) => (this.categories = data),
+      error: (err) => console.error('Error al cargar categorías', err),
     });
   }
 
-  createCategory() {
-    if (!this.newCategoryName.trim()) return;
+  /** CREAR */
+createCategory() {
+  if (!this.newCategoryName.trim()) return;
 
-    this.categoryService.create(this.newCategoryName).subscribe({
-      next: () => {
-        this.newCategoryName = '';
-        this.loadCategories();
-      },
-      error: (err) => console.error('Error al crear categoría', err)
-    });
-  }
+  // limpiamos error anterior
+  this.errorMessage = '';
 
+  this.categoryService.create(this.newCategoryName).subscribe({
+    next: () => {
+      this.newCategoryName = '';
+      this.loadCategories();
+    },
+    error: (err) => {
+      console.error('Error al crear categoría', err);
+
+      // Si viene del backend con 400 y { error: '...' }
+      if (err.status === 400 && err.error?.error) {
+        this.errorMessage = err.error.error; // ej: "Ya existe una categoría con ese nombre."
+      } else {
+        this.errorMessage = 'Ocurrió un error al crear la categoría.';
+      }
+    },
+  });
+}
+
+  /** EDITAR */
   startEdit(category: Category) {
     this.editingCategory = { ...category };
     this.updatedName = category.name;
-
-    
   }
 
   saveEdit() {
@@ -53,22 +77,49 @@ export class AdminCategoriesComponent implements OnInit {
         this.updatedName = '';
         this.loadCategories();
       },
-      error: (err) => console.error('Error al editar categoría', err)
+      error: (err) => console.error('Error al editar categoría', err),
     });
   }
 
   cancelEdit() {
     this.editingCategory = null;
+    this.editingCategory = null;
     this.updatedName = '';
   }
 
+  /** ================== MODAL UNIVERSAL ================== */
+
+  openModal(title: string, message: string, action: () => void) {
+    this.modalTitle = title;
+    this.modalMessage = message;
+    this.actionToConfirm = action;
+    this.showModal = true;
+  }
+
+  cancelModal() {
+    this.showModal = false;
+    this.actionToConfirm = null;
+  }
+
+  confirmModal() {
+    if (this.actionToConfirm) this.actionToConfirm();
+    this.cancelModal();
+  }
+
+  /** ================== DESACTIVAR ================== */
+
+  askDeleteCategory(id: number) {
+    this.openModal(
+      'Desactivar categoría',
+      '¿Seguro que querés desactivar esta categoría?',
+      () => this.deleteCategory(id)
+    );
+  }
+
   deleteCategory(id: number) {
-    if (confirm('¿Estás seguro de eliminar esta categoría?')) {
-      this.categoryService.delete(id).subscribe({
-        next: () => this.loadCategories(),
-        error: (err) => console.error('Error al eliminar categoría', err)
-      });
-    }
+    this.categoryService.delete(id).subscribe({
+      next: () => this.loadCategories(),
+      error: (err) => console.error('Error al desactivar categoría', err),
+    });
   }
 }
-

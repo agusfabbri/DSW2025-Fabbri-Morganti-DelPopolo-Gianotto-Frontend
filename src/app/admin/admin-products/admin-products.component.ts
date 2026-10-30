@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ProductService } from 'src/app/services/product.service';
-import { Product, ProductForm} from 'src/app/models/product';
+import { Product, ProductForm } from 'src/app/models/product';
 
 @Component({
   selector: 'app-admin-products',
@@ -10,15 +10,24 @@ export class AdminProductsComponent implements OnInit {
   products: Product[] = [];
   loading = true;
 
-  // formulario
+  // Formulario
   name = '';
   description = '';
-  price!: number;
-  stock!: number;
-  categoryId!: number;
-  image = '';
+  price: number = 0;
+  stock: number = 0;
+  categoryId: number = 0;
+  image: string = '';
 
+  active: boolean = true; // <-- controla el checkbox
   selectedProductId: number | null = null;
+
+  // 🔥 Modal universal
+  showModal = false;
+  modalTitle = '';
+  modalMessage = '';
+  actionToConfirm: (() => void) | null = null;
+
+    errorMessage: string = '';
 
   constructor(private productService: ProductService) {}
 
@@ -26,36 +35,74 @@ export class AdminProductsComponent implements OnInit {
     this.loadProducts();
   }
 
+  /** Carga TODOS los productos (activos + inactivos) */
   loadProducts() {
-    this.productService.getProducts().subscribe({
+    this.productService.getAllProductsAdmin().subscribe({
       next: (data) => (this.products = data),
       error: (err) => console.error(err),
       complete: () => (this.loading = false),
     });
   }
 
+  /** Cargar formulario para edición */
   onEdit(product: Product) {
     this.selectedProductId = product.id;
+
     this.name = product.name;
     this.description = product.description;
     this.price = product.price;
     this.stock = product.stock;
     this.categoryId = product.categoryId;
-    this.image = product.image || '';
+    this.image = product.image ?? '';
+    this.active = product.active; // <-- carga el checkbox
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  onDelete(id: number) {
-    if (confirm('¿Estás seguro de que querés eliminar este producto?')) {
-      this.productService.deleteProduct(id).subscribe(() => {
-        this.loadProducts();
-      });
-    }
+  /** ================= MODAL UNIVERSAL ================= */
+  openModal(title: string, message: string, action: () => void) {
+    this.modalTitle = title;
+    this.modalMessage = message;
+    this.actionToConfirm = action;
+    this.showModal = true;
   }
 
-  onSubmit() {
-     const productForm: ProductForm = {
+  cancelModal() {
+    this.showModal = false;
+    this.actionToConfirm = null;
+  }
+
+  confirmModal() {
+    if (this.actionToConfirm) this.actionToConfirm();
+    this.cancelModal();
+  }
+
+  /** ================= DESACTIVAR / ACTIVAR ================= */
+  askDisableProduct(id: number) {
+    this.openModal(
+      'Desactivar producto',
+      '¿Seguro que querés desactivar este producto?',
+      () => this.onDisable(id)
+    );
+  }
+
+  onDisable(id: number) {
+    this.productService.deactivateProduct(id).subscribe({
+      next: () => this.loadProducts(),
+      error: (err) => console.error(err),
+    });
+  }
+
+  onEnable(id: number) {
+    this.productService.activateProduct(id).subscribe({
+      next: () => this.loadProducts(),
+      error: (err) => console.error(err),
+    });
+  }
+
+  /** ================= CREAR / EDITAR ================= */
+onSubmit() {
+  const productForm: ProductForm = {
     id: this.selectedProductId ?? undefined,
     name: this.name,
     description: this.description,
@@ -63,50 +110,57 @@ export class AdminProductsComponent implements OnInit {
     stock: this.stock,
     categoryId: this.categoryId,
     image: this.image,
+    active: this.active,
   };
 
-  console.log('onSubmit, productForm:', productForm);
+  // limpiamos error anterior
+  this.errorMessage = '';
 
-  if (this.selectedProductId !== null && this.selectedProductId !== undefined) {
-    const productToUpdate: Product = {
-      ...productForm,
-      id: this.selectedProductId,
-    };
-    console.log('Updating product:', productToUpdate);
-
-    this.productService.updateProduct(productToUpdate).subscribe({
-      next: (res) => {
-        console.log('Update response:', res);
+  // --- EDICIÓN ---
+  if (this.selectedProductId != null) {
+    this.productService.updateProduct(productForm).subscribe({
+      next: () => {
         this.resetForm();
         this.loadProducts();
       },
       error: (err) => {
         console.error('Update error:', err);
-      }
-    });
-  } else {
-    this.productService.createProduct(productForm).subscribe({
-      next: (res) => {
-        console.log('Create response:', res);
-        this.resetForm();
-        this.loadProducts();
+
+        if (err.status === 400 && err.error?.error) {
+          this.errorMessage = err.error.error; // ej: "Ya existe un producto con ese nombre."
+        } else {
+          this.errorMessage = 'Ocurrió un error al actualizar el producto.';
+        }
       },
-      error: (err) => {
-        console.error('Create error:', err);
-      }
     });
+    return;
   }
-}
-  
 
-  resetForm() {
-    this.selectedProductId = null;
-    this.name = '';
-    this.description = '';
-    this.price = 0;
-    this.stock = 0;
-    this.categoryId = 0;
-    this.image = '';
-  }
+  // --- CREACIÓN ---
+  this.productService.createProduct(productForm).subscribe({
+    next: () => {
+      this.resetForm();
+      this.loadProducts();
+    },
+    error: (err) => {
+      console.error('Create error:', err);
+
+      if (err.status === 400 && err.error?.error) {
+        this.errorMessage = err.error.error;
+      } else {
+        this.errorMessage = 'Ocurrió un error al crear el producto.';
+      }
+    },
+  });
 }
 
+resetForm() {
+  this.selectedProductId = null;
+  this.name = '';
+  this.description = '';
+  this.price = 0;
+  this.stock = 0;
+  this.categoryId = 0;
+  this.image = '';
+  this.active = true;
+}}
